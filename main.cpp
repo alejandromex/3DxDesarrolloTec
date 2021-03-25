@@ -1,3 +1,4 @@
+  
 /*
 Wiring from Sensor
 green
@@ -11,6 +12,10 @@ grn/wht split
 #include <math.h>
 #include <heltec.h>
 #include <limits>
+#include <WiFi.h>
+#include <WiFiMulti.h>  
+
+class WiFiMulti WiFiMulti;
 
 //*****Define Sensor Settings*****
 // BOARD SPECIFIC OPTIONS
@@ -46,7 +51,8 @@ int timeToWait = 30000;
 
 void readSensor();
 void wakeSensor(); 
-
+void connectingWifi();
+void sendDataWifi();
 
 void printMessage(String message, double value)
 {
@@ -60,23 +66,89 @@ void printMessage(String message, double value)
 
 void setup()
 {
+  pinMode(Vext, LOW);  
   Serial.begin(9600);
+  delay(10);
   wakeSensor();
-  delay(10000);
+  connectingWifi();
 }
 
 
 
 void loop()
 {
-  readSensor();
+  sendDataWifi();
   delay(timeToWait);
-
+  readSensor();
 }
 
+void connectingWifi()
+{
+  // We start by connecting to a WiFi network
+  WiFiMulti.addAP("AP-45744A", "");
+  Serial.println();
+  Serial.println();
+  Serial.print("Waiting for WiFi... ");
+  while(WiFiMulti.run() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  delay(500);
+}
+
+void sendDataWifi()
+{
+    const uint16_t port = 80;
+    const char * host = "192.168.55.101"; // ip or dns
+//    const uint16_t port = 1337;
+//    const char * host = "192.168.1.10"; // ip or dns
+
+    Serial.print("Connecting to ");
+    Serial.println(host);
+
+    // Use WiFiClient class to create TCP connections
+    WiFiClient client;
+
+    if (!client.connect(host, port)) {
+        Serial.println("Connection failed.");
+        Serial.println("Waiting 5 seconds before retrying...");
+        delay(5000);
+        return;
+    }
+
+    // This will send a request to the server
+    //uncomment this line to send an arbitrary string to the server
+    client.print("Valor2:"+(String)abs(WM1_CB));
+    //uncomment this line to send a basic document request to the server
+    //client.print("GET /index.html HTTP/1.1\n\n");
+
+  int maxloops = 0;
+
+  //wait for the server's reply to become available
+  while (!client.available() && maxloops < 1000)
+  {
+    maxloops++;
+    delay(1); //delay 1 msec
+  }
+  if (client.available() > 0)
+  {
+    //read back one line from the server
+    String line = client.readStringUntil('\r');
+    Serial.println(line);
+  }
+  else
+  {
+    Serial.println("client.available() timed out ");
+  }
+    delay(2000);
+}
 
 void wakeSensor() {
-  Serial.println("Waking sensor...");
+  //Serial.println("Waking sensor...");
 
   // initialize the digital pin as an output.
   pinMode(digitalPin1, OUTPUT);  //Sensor Vs or GND
